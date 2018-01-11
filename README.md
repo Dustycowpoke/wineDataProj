@@ -1,0 +1,2 @@
+# wineDataProj
+Practice using APIs for wine data analysis. I want to use Pandas to look at wine prices (from the LCBO's API, which is one of the few free wine APIs) and globalwinescore's API. The latter uses fancy number wizardry to generate a score from a variety of critics. I chose this source because 1. it's neat, 2. it collects "professional" wine reviews, and 3. the API is pretty nice. They've been doing "database updates" since at least late Dec 2017 so we'll see if it ever becomes available again.  
