@@ -22,21 +22,6 @@ row_iter = 2
 
 def lcbo_api():
 	
-	# Get json
-	payload = {'access_key':TOKEN_ACCESS_KEY,
-				'per_page': results_per_page,
-				'q':'bordeaux',
-				'is_dead':'false'
-				}
-	r = requests.get(LCBO_URL, payload)
-	wine_data_init = json.loads(r.text)
-		
-	# Find total records and pages in 'pager' section of json
-	# this data is constant per every API call
-	wine_pager = wine_data_init.get('pager') # not a typo
-	wine_pages = int(wine_pager.get('total_pages'))
-	wine_records = int(wine_pager.get('total_record_count'))
-	
 	# Create workbook
 	wb = openpyxl.Workbook()
 	wb.title = 'wineData'
@@ -46,67 +31,97 @@ def lcbo_api():
 	sheet['A1'] = 'name'
 	sheet['B1'] = 'price'
 	
-	# Run code for every page
-	for i in range(1, (wine_pages + 1)):
+	'''******************************'''
+	
+	# Set payload to API
+	payload = {'access_key':TOKEN_ACCESS_KEY,
+				'per_page': results_per_page,
+				'q':'bordeaux',
+				'is_dead':'false'
+				}
+	
+	# Pass payload to API then to text object
+	page_1_obj = requests.get(LCBO_URL, payload)
+	page_1_doc = json.loads(page_1_obj.text)
 		
-		# Check if on first page
-		first_page_TF = wine_pager.get('is_first_page')
+	# Find total pages in 'pager' section to iterate over
+	page_1_pager = page_1_doc.get('pager')
+	total_pages = page_1_pager.get('total_pages')
+	wine_records_on_page = int(page_1_pager.get('current_page_record_count'))
+	
+	# Get results from page 1
+	wine_results = page_1_doc.get('result')
+	
+	# Iterate over rows to write data to Excel
+	global row_iter
 		
-		# If true, leave the page number out of the payload
-		if first_page_TF == True:
+	# For each record on page 1
+	for j in range(0, (wine_records_on_page)):
 		
-			r_pages = requests.get(LCBO_URL, payload)
-		
-		# Otherwist, add page to payload (page=1 actually second page)
-		elif first_page_TF == False:
+		name = wine_results[j].get('name')
+		price = int(wine_results[j].get('price_in_cents'))
+					
+		# Write data to next row
+		sheet.cell(row = row_iter, column = 1).value = name
+		sheet.cell(row = row_iter, column = 2).value = price
 			
-			payload['page'] = i
+		# Increment row_iter
+		row_iter += 1
+	
+	# Loop thru every subsequent page
+	for page in range(2, (total_pages + 1)):
+		
+		payload['page'] = page
+		page_obj = requests.get(LCBO_URL, payload)
+		page_doc = json.loads(page_obj.text)
+		
+		# Get results on this page
+		page_pager = page_doc.get('pager')
+		wine_results = page_doc.get('result')
+		
+		# Find wine records on page
+		wine_records_on_page = int(page_pager.get('current_page_record_count'))
+		
+		# For each record on page 
+		for j in range(0, (wine_records_on_page)):
 			
-			r_pages = requests.get(LCBO_URL, payload)
-		
-		
-		r_pages = requests.get(LCBO_URL, payload)
-		
-		wine_data_final = json.loads(r_pages.text)
-		
-		# Print progress by page
-		print('Reading JSON page %i of %i... at %s' % (i, wine_pages, r_pages.url))
-		
-		# Loop thru each json page
-		# Can't assume that there are exactly 100 per page
-		wine_results = wine_data_final.get('result')
-		current_page_record_count = int(wine_pager.get('current_page_record_count'))
-		
-		global row_iter
-		
-		for j in range(0, (current_page_record_count - 1)):
-		
 			name = wine_results[j].get('name')
 			price = int(wine_results[j].get('price_in_cents'))
-					
+						
 			# Write data to next row
 			sheet.cell(row = row_iter, column = 1).value = name
 			sheet.cell(row = row_iter, column = 2).value = price
-			
+				
 			# Increment row_iter
 			row_iter += 1
-	
+		
 	wb.save('wineData.xlsx')
+	
+	
+def excel_writer():
+
+	global row_iter
+	
+	for j in range(0, (wine_records_on_page)):
 			
+			name = wine_results[j].get('name')
+			price = int(wine_results[j].get('price_in_cents'))
+						
+			# Write data to next row
+			sheet.cell(row = row_iter, column = 1).value = name
+			sheet.cell(row = row_iter, column = 2).value = price
+				
+			# Increment row_iter
+			row_iter += 1
+
 def wine_score_api():
 	
-	headers = {'Authorization': ' Token %s' % TOKEN}
+	headers = {'Authorization': 'Token %s' % TOKEN}
+	payload = {'wine': 'bordeaux'}
 	
-	r = requests.get(GWS_URL, headers)
+	r = requests.get(GWS_URL, payload, headers=headers)
 	print(r.url)
-	
-	#with open ('wine_url.txt', 'w') as textfile:
-		#textfile.write(r.url)
-
-def data_work():
-	pass
-	
-	
+	print(r.status_code)	
 	
 lcbo_api()
-# wine_score_api()
+#wine_score_api()
