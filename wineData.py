@@ -1,8 +1,5 @@
 # wineData.py - collects as much data as possible from LCBO's API
 
-#***TODO***
-# only returning 1 page
-
 import requests
 import json
 import openpyxl
@@ -20,20 +17,17 @@ TOKEN = GITHUB_TOKEN
 # Global iterator for writing to spreadsheet
 row_iter = 2
 
+# Global spreadsheet object
+wb = openpyxl.Workbook()
+wb.title = 'wineData'
+sheet = wb.active
+# Create columns with headers
+sheet['A1'] = 'name'
+sheet['B1'] = 'price'
+	
 def lcbo_api():
 	
-	# Create workbook
-	wb = openpyxl.Workbook()
-	wb.title = 'wineData'
-	sheet = wb.active
-	
-	# Create columns with headers
-	sheet['A1'] = 'name'
-	sheet['B1'] = 'price'
-	
-	'''******************************'''
-	
-	# Set payload to API
+	# Send payload to API
 	payload = {'access_key':TOKEN_ACCESS_KEY,
 				'per_page': results_per_page,
 				'q':'bordeaux',
@@ -44,7 +38,7 @@ def lcbo_api():
 	page_1_obj = requests.get(LCBO_URL, payload)
 	page_1_doc = json.loads(page_1_obj.text)
 		
-	# Find total pages in 'pager' section to iterate over
+	# Find total pages in 'pager' section
 	page_1_pager = page_1_doc.get('pager')
 	total_pages = page_1_pager.get('total_pages')
 	wine_records_on_page = int(page_1_pager.get('current_page_record_count'))
@@ -52,25 +46,15 @@ def lcbo_api():
 	# Get results from page 1
 	wine_results = page_1_doc.get('result')
 	
-	# Iterate over rows to write data to Excel
-	global row_iter
-		
-	# For each record on page 1
-	for j in range(0, (wine_records_on_page)):
-		
-		name = wine_results[j].get('name')
-		price = int(wine_results[j].get('price_in_cents'))
-					
-		# Write data to next row
-		sheet.cell(row = row_iter, column = 1).value = name
-		sheet.cell(row = row_iter, column = 2).value = price
-			
-		# Increment row_iter
-		row_iter += 1
+	# Go thru records on page 1, notify user
+	print('Working on page 1 of %s' % total_pages)
+	excel_writer(wine_records_on_page, wine_results)
+	
 	
 	# Loop thru every subsequent page
 	for page in range(2, (total_pages + 1)):
 		
+		print('Working on page %i of %s' % (page, total_pages))
 		payload['page'] = page
 		page_obj = requests.get(LCBO_URL, payload)
 		page_doc = json.loads(page_obj.text)
@@ -82,30 +66,21 @@ def lcbo_api():
 		# Find wine records on page
 		wine_records_on_page = int(page_pager.get('current_page_record_count'))
 		
-		# For each record on page 
-		for j in range(0, (wine_records_on_page)):
-			
-			name = wine_results[j].get('name')
-			price = int(wine_results[j].get('price_in_cents'))
-						
-			# Write data to next row
-			sheet.cell(row = row_iter, column = 1).value = name
-			sheet.cell(row = row_iter, column = 2).value = price
-				
-			# Increment row_iter
-			row_iter += 1
-		
-	wb.save('wineData.xlsx')
+		# Go thru records on each page
+		excel_writer(wine_records_on_page, wine_results)
 	
+	print('LCBO data: done')
 	
-def excel_writer():
+def excel_writer(num_records, results):
 
+	# Bring in total rows written in Excel and sheet object
 	global row_iter
+	global sheet
 	
-	for j in range(0, (wine_records_on_page)):
+	for j in range(0, (num_records)):
 			
-			name = wine_results[j].get('name')
-			price = int(wine_results[j].get('price_in_cents'))
+			name = results[j].get('name')
+			price = int(results[j].get('price_in_cents'))
 						
 			# Write data to next row
 			sheet.cell(row = row_iter, column = 1).value = name
@@ -113,8 +88,12 @@ def excel_writer():
 				
 			# Increment row_iter
 			row_iter += 1
-
-def wine_score_api():
+	
+	# Save data just written	
+	wb.save('wineData.xlsx')
+	return
+	
+def wine_score_api(row, sheet):
 	
 	headers = {'Authorization': 'Token %s' % TOKEN}
 	payload = {'wine': 'bordeaux'}
@@ -122,6 +101,6 @@ def wine_score_api():
 	r = requests.get(GWS_URL, payload, headers=headers)
 	print(r.url)
 	print(r.status_code)	
-	
+
 lcbo_api()
-#wine_score_api()
+wine_score_api(row_iter, sheet)
