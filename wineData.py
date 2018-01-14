@@ -30,7 +30,7 @@ def lcbo_api():
 	# Send payload to API
 	payload = {'access_key':TOKEN_ACCESS_KEY,
 				'per_page': results_per_page,
-				'q':'bordeaux',
+				'q':'bordeaux', #change this depending on GWS API availability
 				'is_dead':'false'
 				}
 	
@@ -49,7 +49,6 @@ def lcbo_api():
 	# Go thru records on page 1, notify user
 	print('Working on page 1 of %s' % total_pages)
 	excel_writer(wine_records_on_page, wine_results)
-	
 	
 	# Loop thru every subsequent page
 	for page in range(2, (total_pages + 1)):
@@ -95,12 +94,27 @@ def excel_writer(num_records, results):
 	
 def wine_score_api(row, sheet):
 	
-	headers = {'Authorization': 'Token %s' % TOKEN}
-	payload = {'wine': 'bordeaux'}
+	header = {'Authorization': 'Token %s' % TOKEN}
 	
-	r = requests.get(GWS_URL, payload, headers=headers)
-	print(r.url)
-	print(r.status_code)	
+	payload = {'wine':'bordeaux'}
+	
+	r = requests.get(GWS_URL, payload, headers=header)
+	r_doc = json.loads(r.text)
+	print(json.dumps(r_doc, indent=4))
+
+# test function
+def wine_score_api_pass_val(sheet):
+	
+	header = {'Authorization': 'Token %s' % TOKEN}
+	
+	for row in sheet.iter_rows(min_row=2, max_col=1, max_row=20): 
+		payload = {'wine':row}
+		
+		r = requests.get(GWS_URL, payload, headers=header)
+		r_doc = json.loads(r.text)
+		print(json.dumps(r_doc, indent=4))
 
 lcbo_api()
-wine_score_api(row_iter, sheet)
+#wine_score_api(row_iter, sheet)
+
+wine_score_api_pass_val(sheet)
